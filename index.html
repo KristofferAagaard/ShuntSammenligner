@@ -1,0 +1,1722 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VP Shunt Ventil Sammenligning</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="catalog.js"></script>
+<script src="physics.js"></script>
+<style>
+:root {
+  --bg:#f1f5f9; --card:#fff; --border:#e2e8f0; --text:#1e293b; --muted:#64748b;
+  --primary:#2563eb; --shadow:0 1px 4px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+header{background:linear-gradient(135deg,#0f2744,#1d4ed8);color:#fff;padding:1rem 1.5rem}
+header h1{font-size:1.25rem;font-weight:700}
+header p{font-size:.8rem;opacity:.8;margin-top:.2rem}
+
+.top{display:grid;grid-template-columns:1fr 265px;gap:.75rem;padding:.75rem;max-width:1500px;margin:0 auto}
+.chart-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1rem;box-shadow:var(--shadow)}
+.chart-wrap{position:relative;height:430px}
+
+.patient-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.9rem;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:.85rem}
+.ptitle{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:.15rem}
+.sl-row label{display:flex;justify-content:space-between;font-size:.78rem;color:var(--muted);margin-bottom:.2rem}
+.sl-row label strong{color:var(--text)}
+input[type=range]{width:100%;accent-color:var(--primary);cursor:pointer}
+.pills{display:flex;border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.pill{flex:1;padding:.3rem;font-size:.75rem;text-align:center;border:none;background:none;cursor:pointer;color:var(--muted);font-family:inherit;transition:background .12s,color .12s}
+.pill.on{background:var(--primary);color:#fff;font-weight:600}
+.ref-box{background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:.55rem;font-size:.73rem;line-height:1.65;color:var(--muted)}
+.ref-box b{color:var(--text);font-weight:500}
+.badge-val{display:inline-block;border-radius:4px;padding:.1rem .45rem;font-size:.78rem;font-weight:600}
+.bv-blue{background:#dbeafe;color:#1d4ed8}
+.bv-green{background:#dcfce7;color:#166534}
+
+/* table */
+.table-section{max-width:1500px;margin:0 auto;padding:0 .75rem .75rem}
+.table-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:.9rem;box-shadow:var(--shadow)}
+.table-card h2{font-size:.95rem;font-weight:600;margin-bottom:.5rem}
+.tbl-wrap{overflow-x:auto}
+
+table{width:100%;border-collapse:collapse;font-size:.76rem;table-layout:fixed}
+col.c-sel  {width:58px}
+col.c-name {width:195px}
+col.c-type {width:148px}
+col.c-param{width:250px}
+col.c-thr  {width:120px}
+col.c-icp  {width:120px}
+col.c-note {width:180px}
+col.c-refs {width:190px}
+col.c-xray {width:110px}
+col.c-cath {width:120px}
+
+/* Reference chips */
+.ref-links{display:flex;flex-wrap:wrap;gap:.2rem}
+.ref-chip{display:inline-flex;align-items:center;border-radius:3px;padding:.08rem .38rem;font-size:.63rem;font-weight:600;text-decoration:none;white-space:nowrap;line-height:1.5;transition:opacity .12s}
+.ref-chip:hover{opacity:.75;text-decoration:none}
+.ref-mfg   {background:#dbeafe;color:#1e40af}
+.ref-sci   {background:#dcfce7;color:#166534}
+.ref-xray  {background:#ffedd5;color:#9a3412}
+.ref-review{background:#ede9fe;color:#5b21b6}
+.ref-ifu   {background:#e0f2fe;color:#0369a1}
+.ref-rec   {background:#ecfccb;color:#3f6212}
+
+/* Advanced mode — independent-research content hidden in basic mode,
+   shown only when <body> carries .adv-on */
+.adv-only{display:none}
+.adv-on .adv-only{display:block}
+.adv-on .ref-links.adv-only{display:flex;flex-wrap:wrap;gap:.2rem;margin-top:.2rem}
+.research-note{margin-top:.3rem;padding:.3rem .45rem;background:#fffbeb;
+               border-left:3px solid #f59e0b;border-radius:0 4px 4px 0;
+               font-size:.71rem;line-height:1.5;color:#92400e}
+.research-note .ref-links{margin-top:.25rem}
+
+/* X-ray column hidden by default; shown with .xray-on on .table-section */
+.xray-col{display:none}
+.xray-on .xray-col{display:table-cell}
+
+/* Distal-catheter column — advanced mode only */
+.cath-col{display:none}
+.adv-on .cath-col{display:table-cell}
+
+/* Common refs footer (independent research) */
+.common-refs{display:none;background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:.55rem;font-size:.71rem;line-height:1.7;color:var(--muted);margin-top:.5rem}
+.adv-on .common-refs{display:block}
+
+/* Sources toggle — data provenance per valve */
+.src-only{display:none}
+.src-on .src-only{display:block}
+
+/* Basic-mode-only elements — hidden when advanced mode is on */
+.basic-only{display:block}
+.adv-on .basic-only{display:none}
+.common-refs b{color:var(--text)}
+.common-refs a{color:var(--primary);text-decoration:none}
+.common-refs a:hover{text-decoration:underline}
+
+/* Table view-toggle buttons */
+.tbl-toggle{display:inline-flex;align-items:center;gap:.3rem;padding:.28rem .7rem;font-size:.74rem;font-weight:600;border:1px solid var(--border);border-radius:5px;background:var(--card);color:var(--muted);cursor:pointer;font-family:inherit;transition:background .12s,color .12s,border-color .12s}
+.tbl-toggle.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+.tbl-toggle:hover:not(.on){background:#f0f4ff;color:var(--primary)}
+
+th{background:#f8fafc;border-bottom:2px solid var(--border);padding:.4rem .5rem;text-align:left;
+   font-size:.69rem;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);overflow:hidden}
+td{border-bottom:1px solid #f1f5f9;padding:.38rem .5rem;vertical-align:middle;overflow:hidden}
+tr:hover td{background:#fafbfc}
+tr.mfg-hdr td{background:#f0f4ff;font-size:.71rem;font-weight:700;color:#1d4ed8;
+               text-transform:uppercase;letter-spacing:.06em;padding:.3rem .5rem;
+               border-bottom:1px solid #dbeafe;border-top:2px solid #bfdbfe}
+tr.fam-hdr td{background:#fafafa;font-size:.76rem;font-weight:600;color:var(--text);
+               padding:.4rem .5rem;border-bottom:1px solid #e9ecef}
+tr.var-row td{padding:.32rem .5rem}
+tr.var-row td.vc-name{padding-left:1.3rem}
+tr.var-row:hover td{background:#f8fafc}
+
+/* type badges */
+.badge{display:inline-block;border-radius:4px;padding:.12rem .4rem;font-size:.68rem;font-weight:600;white-space:nowrap}
+.b-fixed    {background:#dbeafe;color:#1e40af}
+.b-prog     {background:#dcfce7;color:#166534}
+.b-grav     {background:#ffedd5;color:#9a3412}
+.b-flow     {background:#ede9fe;color:#5b21b6}
+.b-as       {background:#ccfbf1;color:#0f766e}
+.b-asd-sg   {background:#e0f2fe;color:#0369a1}
+.b-asd-delta{background:#fce7f3;color:#9d174d}
+.b-scenario {background:#fef3c7;color:#92400e}
+.adv-badge{display:none}
+.adv-on .adv-badge{display:inline-flex}
+
+/* checkbox + color swatch */
+.sel-wrap{display:flex;align-items:center;gap:6px;padding:0 2px}
+.swatch{width:22px;height:14px;border-radius:3px;border:2px solid #cbd5e1;flex-shrink:0;transition:background .15s,border-color .15s}
+.swatch.on{border-color:transparent}
+input[type=checkbox]{cursor:pointer;accent-color:var(--primary);width:15px;height:15px;flex-shrink:0}
+
+/* parameter controls */
+.ctrl{display:flex;align-items:center;gap:.3rem;flex-wrap:nowrap;overflow:hidden}
+.ctrl input[type=range]{width:95px;min-width:55px;flex-shrink:1;accent-color:var(--primary)}
+.ctrl select{font-size:.72rem;border:1px solid var(--border);border-radius:4px;padding:.12rem .25rem;
+             background:#fff;cursor:pointer;max-width:160px;min-width:0}
+.sv{font-size:.71rem;color:var(--primary);font-weight:600;white-space:nowrap;flex-shrink:0}
+.param-lbl{font-size:.7rem;color:var(--muted);margin-bottom:.1rem}
+.total-lbl{font-size:.72rem;color:#0f766e;font-weight:600;margin-top:.25rem}
+
+/* threshold cell */
+.thr-safe{color:#16a34a;font-weight:600;font-size:.78rem}
+.thr-warn{color:#d97706;font-weight:600;font-size:.78rem}
+.thr-risk{color:#dc2626;font-weight:600;font-size:.78rem}
+.thr-info{color:var(--muted);font-size:.7rem;line-height:1.4}
+
+th[title]{cursor:help}
+.angle-vis{text-align:center;margin-top:.2rem;font-size:.73rem;color:var(--muted)}
+.person{font-size:1.3rem;display:inline-block;transform-origin:50% 80%;transition:transform .2s}
+footer{text-align:center;padding:.7rem;font-size:.72rem;color:var(--muted);border-top:1px solid var(--border);margin-top:.5rem}
+@media(max-width:900px){.top{grid-template-columns:1fr}}
+
+/* Advanced parameters panel — full-width strip between chart and table */
+.adv-panel{display:none;max-width:1500px;margin:0 auto;padding:0 .75rem .5rem}
+.adv-on .adv-panel{display:block}
+.adv-panel-inner{background:var(--card);border:1px solid #bfdbfe;border-radius:10px;padding:.85rem 1rem;box-shadow:var(--shadow)}
+.adv-panel-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(185px,1fr));gap:.85rem 1.2rem;margin-top:.5rem}
+.adv-grp .ptitle{margin-bottom:.2rem}
+.icp-sim-grid{display:grid;grid-template-columns:1fr 220px;gap:1.2rem;align-items:start}
+.icp-chart-wrap{position:relative;height:200px}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>VP Shunt Ventil Sammenligning</h1>
+</header>
+
+<div class="top">
+  <!-- DIAGRAM -->
+  <div class="chart-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;flex-wrap:wrap;gap:.4rem">
+      <div>
+        <div style="display:flex;align-items:center;gap:.5rem">
+          <h2 style="font-size:.95rem;font-weight:600">CSF-flowrate vs. intrakranielt tryk</h2>
+          <span class="adv-badge badge b-prog" style="font-size:.6rem;padding:.08rem .38rem">Avanceret</span>
+        </div>
+        <p id="chart-sub" style="font-size:.75rem;color:var(--muted);margin-top:.1rem">Vælg ventiler i tabellen nedenfor</p>
+      </div>
+      <div style="display:flex;align-items:center;gap:.75rem;flex-shrink:0;flex-wrap:wrap">
+        <label style="display:flex;align-items:center;gap:.3rem;font-size:.75rem;cursor:pointer;color:var(--muted);white-space:nowrap">
+          <input type="checkbox" id="opt-prod" checked onchange="redraw()"> CSF-produktion
+        </label>
+        <label style="display:flex;align-items:center;gap:.3rem;font-size:.75rem;cursor:pointer;color:var(--muted);white-space:nowrap">
+          <input type="checkbox" id="opt-icp" checked onchange="redraw()"> Normalt ICP
+        </label>
+        <div class="pills">
+          <button class="pill" id="btn-mmhg" onclick="setUnit('mmhg')">mmHg</button>
+          <button class="pill on" id="btn-cmh2o" onclick="setUnit('cmh2o')">cmH₂O</button>
+        </div>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="myChart"></canvas></div>
+    <div style="display:flex;gap:1.2rem;flex-wrap:wrap;margin-top:.5rem;padding-top:.45rem;border-top:1px solid var(--border)">
+      <label style="display:flex;align-items:center;gap:.3rem;font-size:.75rem;cursor:pointer;color:var(--muted)">
+        <input type="checkbox" id="opt-siphon" checked onchange="redraw()"> Hydrostatisk tryk
+      </label>
+      <label style="display:flex;align-items:center;gap:.3rem;font-size:.75rem;cursor:pointer;color:var(--muted)">
+        <input type="checkbox" id="opt-iap" checked onchange="redraw()"> IAP (peritonealtryk)
+      </label>
+      <label style="display:flex;align-items:center;gap:.3rem;font-size:.75rem;cursor:pointer;color:var(--muted)">
+        <input type="checkbox" id="opt-cath" checked onchange="redraw()"> Katetermodstand
+      </label>
+      <label style="display:flex;align-items:center;gap:.3rem;font-size:.75rem;cursor:pointer;color:var(--muted)">
+        <input type="checkbox" id="opt-or" onchange="redraw()"> Åbningsintervaller
+      </label>
+    </div>
+  </div>
+
+  <!-- PATIENTPANEL -->
+  <div class="patient-card">
+    <div>
+      <div class="ptitle">Patientparametre</div>
+      <div class="sl-row">
+        <label><span>Højde</span><strong id="lbl-h">170 cm</strong></label>
+        <input type="range" id="sl-h" min="140" max="210" step="1" value="170" oninput="updPatient()">
+      </div>
+      <div style="margin-top:.5rem">
+        <div class="ptitle" style="margin-bottom:.25rem">Kropstype</div>
+        <div class="pills">
+          <button class="pill" id="hab-slim" onclick="setHabitus('slim')">Slank</button>
+          <button class="pill on" id="hab-normal" onclick="setHabitus('normal')">Normal</button>
+          <button class="pill" id="hab-obese" onclick="setHabitus('obese')">Adipøs</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="ptitle">Kropsposition (vinkel fra vandret)</div>
+      <div class="sl-row">
+        <label><span style="font-size:.7rem">Liggende 0°</span><span style="font-size:.7rem">Stående 90°</span></label>
+        <input type="range" id="sl-ang" min="0" max="90" step="1" value="0" oninput="updPatient()">
+      </div>
+      <div class="angle-vis">
+        <span id="lbl-pos">Liggende (0°)</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="ptitle">Beregnet udløbstryk</div>
+      <div style="font-size:.72rem;margin-top:.35rem;line-height:1.8">
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--muted)">Hydrostatisk (position):</span>
+          <strong id="hydro-val">0 cmH₂O</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--muted)">IAP (kropstype):</span>
+          <strong id="iap-basic-val">8 cmH₂O</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--muted)">IAP (stilling):</span>
+          <strong id="iap-pos-val">0 cmH₂O</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between">
+          <span style="color:var(--muted)">= IAP total:</span>
+          <strong id="iap-total-displayed">8 cmH₂O</strong>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.3rem;padding-top:.25rem;border-top:1px solid var(--border)">
+        <span style="font-size:.72rem;font-weight:600">= Udløbstryk:</span>
+        <span class="badge-val bv-blue" id="outlet-val">8 cmH₂O</span>
+      </div>
+    </div>
+
+    <div>
+      <div class="ptitle">Normalt ICP ved aktuel position</div>
+      <span class="badge-val bv-green" id="icp-range-badge">0 – 7 cmH₂O</span>
+    </div>
+
+    <button id="btn-adv" class="tbl-toggle" onclick="toggleAdvanced()" style="width:100%;justify-content:center">Avanceret tilstand</button>
+
+  </div>
+</div>
+
+<!-- ICP SIMULATION PANEL (adv-only, directly below chart) -->
+<div class="adv-panel" style="padding-bottom:0">
+  <div class="adv-panel-inner">
+    <div class="ptitle" style="margin-bottom:.5rem">ICP-simulation – realtidsflow</div>
+    <div class="icp-sim-grid">
+      <div>
+        <div class="icp-chart-wrap"><canvas id="icpSimChart"></canvas></div>
+      </div>
+      <div>
+        <div class="ptitle">Gennemsnitlig ICP</div>
+        <div class="sl-row">
+          <label><span>Middel ICP</span><strong id="lbl-sim-icp">7 cmH₂O</strong></label>
+          <input type="range" id="sl-sim-icp" min="-10" max="30" step="0.5" value="7" oninput="updSimICP()">
+        </div>
+        <div style="font-size:.7rem;color:var(--muted);margin-top:.6rem;line-height:1.6">
+          Prikken på ventilkurverne viser aktuelt flow ved den simulerede ICP.<br>
+          Estimeret volumen pr. cyklus → mL/time vises nedenfor.
+        </div>
+      </div>
+    </div>
+    <div id="sim-flow-display" style="margin-top:.65rem;font-size:.75rem;line-height:1.8"></div>
+  </div>
+</div>
+
+<!-- ADVANCED PANEL (adv-only, full-width, between chart and table) -->
+<div class="adv-panel">
+  <div class="adv-panel-inner">
+    <div class="ptitle" style="margin-bottom:.35rem">Avancerede parametre</div>
+    <div class="ptitle" style="font-size:.66rem;margin-bottom:.3rem">Kateter-parametre pr. ventil</div>
+    <div id="adv-cath-panel" style="display:flex;flex-wrap:wrap;gap:.85rem 1.2rem;margin-bottom:.65rem">
+      <div style="font-size:.71rem;color:var(--muted);font-style:italic">Vælg ventiler i tabellen for at justere kateter-parametre.</div>
+    </div>
+    <div class="ptitle" style="font-size:.66rem;margin-bottom:.3rem">Globale parametre</div>
+    <div class="adv-panel-grid">
+      <!-- Viscosity -->
+      <div class="adv-grp">
+        <div class="ptitle">CSF-viskositet</div>
+        <div class="sl-row">
+          <label><span>η</span><strong id="lbl-visc">0,69 mPa·s</strong></label>
+          <input type="range" id="sl-visc" min="0.4" max="2.0" step="0.01" value="0.69" oninput="updAdvanced()">
+        </div>
+        <div style="font-size:.68rem;color:var(--muted)">mPa·s (CSF ≈ 0,69–1,0)</div>
+      </div>
+      <!-- IAP delta -->
+      <div class="adv-grp">
+        <div class="ptitle">Intraabdominalt tryk (IAP)</div>
+        <div style="font-size:.72rem;line-height:1.8">
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:var(--muted)">Grundværdi (kropstype):</span>
+            <strong id="iap-adv-base-val">8 cmH₂O</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between">
+            <span style="color:var(--muted)">Positionstillæg:</span>
+            <strong id="iap-adv-pos-val">0 cmH₂O</strong>
+          </div>
+        </div>
+        <div class="sl-row">
+          <label><span>Δ IAP justering</span><strong id="lbl-iap-adv-delta">±0 cmH₂O</strong></label>
+          <input type="range" id="sl-iap-adv-delta" min="-10" max="15" step="1" value="0" oninput="updPatientAdv()">
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.71rem">
+          <span style="color:var(--muted)">= IAP total:</span>
+          <strong id="iap-adv-total-val">8 cmH₂O</strong>
+        </div>
+      </div>
+      <!-- Respiration -->
+      <div class="adv-grp">
+        <div class="ptitle">Respiration</div>
+        <div class="sl-row">
+          <label><span>Amplitude</span><strong id="lbl-resp">1,0 cmH₂O</strong></label>
+          <input type="range" id="sl-resp" min="0" max="5" step="0.1" value="1" oninput="updAdvanced()">
+        </div>
+        <div class="sl-row">
+          <label><span>Frekvens</span><strong id="lbl-resprate">12 /min</strong></label>
+          <input type="range" id="sl-resprate" min="8" max="24" step="1" value="12" oninput="updAdvanced()">
+        </div>
+        <div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">IAP-oscillation: ×2,5 (anti-fas)</div>
+      </div>
+      <!-- Cardiac pulsatility -->
+      <div class="adv-grp">
+        <div class="ptitle">Hjertepulsatilitet (P1/P2/P3)</div>
+        <div class="sl-row">
+          <label><span>Hjertefrekvens</span><strong id="lbl-hr">70 /min</strong></label>
+          <input type="range" id="sl-hr" min="40" max="120" step="1" value="70" oninput="updAdvanced()">
+        </div>
+        <div class="sl-row">
+          <label><span>Kardial amplitude</span><strong id="lbl-cardamp">2,0 cmH₂O</strong></label>
+          <input type="range" id="sl-cardamp" min="0" max="6" step="0.1" value="2" oninput="updAdvanced()">
+        </div>
+        <div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">Normal compliance: P1 &gt; P2 &gt; P3</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- VENTILKATALOG -->
+<div class="table-section">
+  <div class="table-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem;margin-bottom:.5rem">
+      <h2 style="margin:0">Ventilkatalog — vælg ventiler til diagrammet</h2>
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+      </div>
+    </div>
+    <div class="tbl-wrap">
+      <table id="vtable">
+        <colgroup>
+          <col class="c-sel"><col class="c-name"><col class="c-type">
+          <col class="c-param"><col class="c-thr"><col class="c-icp"><col class="c-note"><col class="c-refs"><col class="c-xray"><col class="c-cath">
+        </colgroup>
+        <thead>
+          <tr>
+            <th></th>
+            <th>Produkt</th>
+            <th>Type</th>
+            <th>Indstilling / Parametre</th>
+            <th title="Ventilens åbningstryk ved aktuel kropsvinkel (AGD-komponent inkluderet). Sifoneffekt og intraabdominalt tryk ikke medregnet — svarer til ventilens benchkarakteristik ved denne vinkel.">
+              Åbningstryk ①
+              <span style="font-size:.62rem;color:var(--primary);display:block;text-transform:none;letter-spacing:0">(pos. · ingen sifon)</span>
+            </th>
+            <th title="Det ICP, ved hvilket ventilen åbner i patienten: åbningstryk minus udløbstryk (= hydrostatisk sifoneffekt + IAP). Grøn = lukket ved normalt ICP (beskyttet). Gul = åbner inden for normalt ICP-område. Rød = åbner under normalt ICP (overdrænagerisiko).">
+              Åbnings ICP ②
+              <span style="font-size:.62rem;color:var(--primary);display:block;text-transform:none;letter-spacing:0">(udløbstryk)</span>
+            </th>
+            <th>Bemærkning</th>
+            <th>Referencer</th>
+            <th class="xray-col">Røntgen</th>
+            <th class="cath-col">Distal kateter</th>
+          </tr>
+        </thead>
+        <tbody id="vtbody"></tbody>
+      </table>
+    </div>
+    <div style="font-size:.71rem;color:var(--muted);margin-top:.5rem;line-height:1.6">
+      ① <b>Åbningstryk</b>: Ventilens åbningstryk ved aktuel vinkel (AGD inkl.), uden udløbstryk — svarer til benchkarakteristik.
+      &nbsp;② <b>Åbnings ICP</b>: Krævet hjernetryk i patienten = åbningstryk − udløbstryk (udløbstryk = IAP − hydrostatisk sifoneffekt).
+      &nbsp;<span style="color:#16a34a;font-weight:600">●&thinsp;Grøn</span> = lukket ved normalt ICP.
+      &nbsp;<span style="color:#d97706;font-weight:600">●&thinsp;Gul</span> = åbner inden for normalt ICP-område.
+      &nbsp;<span style="color:#dc2626;font-weight:600">●&thinsp;Rød</span> = åbner under normalt ICP (overdrænagerisiko).
+    </div>
+    <div class="common-refs">
+      <b>Centrale referencer:</b>
+      &nbsp;<a href="https://pmc.ncbi.nlm.nih.gov/articles/PMC7965480/" target="_blank" rel="noopener">Lollis 2010 – Røntgenidentifikation af justerbare ventiler (AJNR)</a>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <strong>Kun til undervisning og faglig sammenligning — ikke til klinisk beslutningstagning eller individuel patientbehandling.</strong><br>
+  Flowkurverne er forenklede matematiske modeller. Hydraulisk ventilmodstand er dokumenteret fra IFU for udvalgte ventiler; øvrige anvender en estimeret lav pladsholder.
+  Faktisk ydeevne varierer og afhænger af fabrikant, individuel ventil, kateterdimensioner og patientanatomi.<br>
+  Fabrikantens IFU er den autoritative kilde ved kliniske beslutninger om ventilvalg og indstilling.
+</footer>
+
+<script>
+// ═══════════════════════════════════════════
+// PHYSICS
+// ═══════════════════════════════════════════
+const SG_INFO     = '⚡ SiphonGuard aktiv: iht. fabrikanten (Integra/Codman) lukker '
+  + 'den primære kanal når CSF-flowet overstiger ~140 mL/time — fx ved oprejst '
+  + 'stilling — hvorefter CSF ledes gennem spiralkanalen med høj modstand.';
+
+function _cathVisc() { return S.advanced.visc_mpa_s * 1e-3; }
+
+function defaultCath(v) {
+  return {
+    prox_length_cm:   15,
+    prox_inner_mm:    1.2,
+    distal_length_cm: (v.catheter && v.catheter.length_cm != null) ? v.catheter.length_cm : 120,
+    distal_inner_mm:  (v.catheter && v.catheter.inner_mm  != null) ? v.catheter.inner_mm  : 1.2,
+  };
+}
+function proxRForValve(id) {
+  const p = S.advanced.cath[id]; if (!p) return 0;
+  return catheterResistance({ length_cm: p.prox_length_cm, inner_mm: p.prox_inner_mm, visc_pa_s: _cathVisc() });
+}
+function distRForValve(id) {
+  const p = S.advanced.cath[id]; if (!p) return 0;
+  return catheterResistance({ length_cm: p.distal_length_cm, inner_mm: p.distal_inner_mm, visc_pa_s: _cathVisc() });
+}
+function cathRForValve(id) {
+  const cb = document.getElementById('opt-cath');
+  if (!cb || !cb.checked) return 0;
+  return proxRForValve(id) + distRForValve(id);
+}
+
+// ═══════════════════════════════════════════
+// CATALOG LOADER
+// ═══════════════════════════════════════════
+// Reads CATALOG_DATA from catalog.js (values in cmH₂O) and copies all
+// pressure fields into runtime properties used by the physics functions.
+
+function buildCatalog() {
+  const c2m = v => (v != null ? v : 0); // catalog already in cmH₂O — identity pass
+
+  function convertValve(src) {
+    const v = Object.assign({}, src);
+    v.cur_p   = c2m(v.cur_p_cm);
+    v.cur_agd = c2m(v.cur_agd_cm);
+    if (v.p_min_cm   != null) v.p_min      = c2m(v.p_min_cm);
+    if (v.p_max_cm   != null) v.p_max      = c2m(v.p_max_cm);
+    if (v.agd_min_cm != null) v.agd_min    = c2m(v.agd_min_cm);
+    if (v.agd_max_cm != null) v.agd_max_val = c2m(v.agd_max_cm);
+    if (v.close_p_cm != null) v.close_p    = c2m(v.close_p_cm);
+    if (v.dp_p_cm    != null) v.dp_p       = c2m(v.dp_p_cm);
+    if (v.safety_p_cm!= null) v.safety_p   = c2m(v.safety_p_cm);
+    if (v.p_settings) {
+      v.p_settings = v.p_settings.map(s => ({
+        ...s,
+        val: s.val_cm != null ? c2m(s.val_cm) : 999,
+      }));
+    }
+    if (v.agdOptions) {
+      v.agdOptions = v.agdOptions.map(opt => {
+        const o = Object.assign({}, opt);
+        o.cur_agd = c2m(o.cur_agd_cm);
+        if (o.agd_min_cm != null) o.agd_min     = c2m(o.agd_min_cm);
+        if (o.agd_max_cm != null) o.agd_max_val  = c2m(o.agd_max_cm);
+        return o;
+      });
+    }
+    return v;
+  }
+
+  return CATALOG_DATA.map(entry => {
+    const out = Object.assign({}, entry);
+    if (entry.type === 'family') {
+      out.variants = entry.variants.map(convertValve);
+    } else {
+      return convertValve(out);
+    }
+    return out;
+  });
+}
+
+const CATALOG = buildCatalog();
+
+// Flat lookup map: id → valve object
+const VALVE_MAP = {};
+CATALOG.forEach(e => {
+  if (e.type === 'single') VALVE_MAP[e.id] = e;
+  else e.variants.forEach(v => { VALVE_MAP[v.id] = v; });
+});
+
+// ═══════════════════════════════════════════
+// OPENING RANGE HELPERS
+// ═══════════════════════════════════════════
+function formatOpeningRange(or) {
+  if (!or) return null;
+  const u   = S.unit === 'cmh2o' ? 'cmH₂O' : 'mmHg';
+  const cvt = v => S.unit === 'cmh2o' ? v : +(v / MM2CM).toFixed(1);
+  if (or.nominal_cm != null && or.tolerance_cm != null)
+    return `${cvt(or.nominal_cm)} ± ${cvt(or.tolerance_cm)} ${u}`;
+  if (or.min_cm != null && or.max_cm != null)
+    return `${cvt(or.min_cm)} – ${cvt(or.max_cm)} ${u}`;
+  return null;
+}
+
+function chipHtml(r) {
+  return `<a href="${r.url}" target="_blank" rel="noopener" class="ref-chip ref-${r.type}">${r.label}</a>`;
+}
+
+// primaryTypes: always shown. secondaryTypes: shown only in advanced mode.
+// If only primaryTypes given (e.g. xray-only calls), secondary is empty.
+function refsHtml(refs, primaryTypes, secondaryTypes) {
+  if (!refs || !refs.length) return '';
+  const primary   = primaryTypes   ? refs.filter(r => primaryTypes.includes(r.type))   : refs;
+  const secondary = secondaryTypes ? refs.filter(r => secondaryTypes.includes(r.type)) : [];
+  let html = '';
+  if (primary.length)
+    html += '<div class="ref-links">' + primary.map(chipHtml).join('') + '</div>';
+  if (secondary.length)
+    html += '<div class="ref-links adv-only">' + secondary.map(chipHtml).join('') + '</div>';
+  return html;
+}
+
+// Distal-catheter dimensions — shown in the advanced-mode catheter column.
+function catheterHtml(c) {
+  if (!c) return '';
+  const bits = [];
+  if (c.inner_mm  != null) bits.push(`Ø indv. ${c.inner_mm} mm`);
+  if (c.outer_mm  != null) bits.push(`Ø udv. ${c.outer_mm} mm`);
+  if (c.length_cm != null) bits.push(`L ${c.length_cm} cm`);
+  return bits.join('<br>');
+}
+
+// Independent-research block (hysteresis etc.) — rendered only in advanced mode.
+// research.hysteresis_cm is in cmH₂O (not unit-converted by buildCatalog).
+function researchHtml(r) {
+  if (!r) return '';
+  const bits = [];
+  if (r.hysteresis_cm != null) bits.push(`<b>Hysterese:</b> ${r.hysteresis_cm} cmH₂O`);
+  if (r.note) bits.push(r.note);
+  if (!bits.length) return '';
+  return `<div class="research-note adv-only">🔬 ${bits.join(' &nbsp;·&nbsp; ')}`
+    + refsHtml(r.refs) + `</div>`;
+}
+
+// Per-field data provenance from the catalog `sources` field — shown with Kildereferencer toggle.
+function sourcesHtml(sources) {
+  if (!sources || !Object.keys(sources).length) return '';
+  const fieldLabels = {
+    cur_p_cm: 'Åbningstryk', p_settings: 'Tryk-indstillinger', R: 'Hydraulisk modstand',
+    sg_activation: 'SG-aktiveringsflow', sg_resistance: 'SG-kanalmodstand',
+    catheter: 'Distalt kateter', agd: 'AGD', reg_flow: 'Reguleret flow',
+  };
+  const rows = Object.entries(sources).map(([k, s]) => {
+    const lbl = fieldLabels[k] || k;
+    return `<li><b>${lbl}:</b> ${s.ref}${s.comment ? ` — ${s.comment}` : ''}</li>`;
+  }).join('');
+  return `<div class="src-only" style="margin-top:.35rem;padding:.3rem .45rem;background:#f0f9ff;`
+    + `border-left:3px solid #38bdf8;border-radius:0 4px 4px 0;font-size:.69rem;line-height:1.55;color:#0c4a6e">`
+    + `<b>📎 Datakilder:</b><ul style="margin:.2rem 0 0 1rem;padding:0">${rows}</ul></div>`;
+}
+
+function mfgRefLine(v) {
+  if (v.flowType === 'osv') return '';
+  if (!v.pAdj) return '';
+  if (v.isFlowResistor) return '';
+  if (v.evd) return '';
+  let txt = '';
+  if (v.lying_cm != null && v.standing_cm != null) {
+    txt = `Fab.: ${v.lying_cm} · ${v.standing_cm} cmH₂O (lig./stå.)`;
+  } else if (v.cur_p_cm != null) {
+    txt = `Fab.: ${v.cur_p_cm} cmH₂O`;
+    if (v.cur_agd_cm) txt += ` · ${+(v.cur_p_cm + v.cur_agd_cm).toFixed(0)} cmH₂O (stå. est.)`;
+  }
+  return txt ? `<div style="font-size:.67rem;color:var(--muted);margin-top:.2rem">${txt}</div>` : '';
+}
+
+function openingRangeHtml(id, or) {
+  const str = formatOpeningRange(or);
+  if (!str) return '';
+  const lbl  = (or.source === 'ifu') ? 'IFU-spec.:' : 'Forskningsmåling:';
+  const ref  = or.ref ? ` (${or.ref})` : '';
+  return `<div class="or-lbl" data-or-id="${id}" style="display:none;font-size:.69rem;color:var(--muted);margin-top:.15rem">`+
+    `${lbl} ${str}${ref}</div>`;
+}
+
+// ═══════════════════════════════════════════
+// HABITUS → IAP DEFAULTS (cmH₂O)
+// ═══════════════════════════════════════════
+const HABITUS_IAP = { slim: 5, normal: 8, obese: 15 };
+
+function habitusIAP(habitus) { return HABITUS_IAP[habitus] || 8; }
+
+// IAP including position-dependent hydrostatic component + user delta.
+function currentIAP() {
+  return habitusIAP(S.habitus) + iapPositionDelta(S.habitus, S.angle) + S.iap_delta;
+}
+// Returns 0 when the IAP toggle is unchecked.
+function effectiveIAP() {
+  const cb = document.getElementById('opt-iap');
+  return (!cb || cb.checked) ? currentIAP() : 0;
+}
+function effectiveSiphon() {
+  const cb = document.getElementById('opt-siphon');
+  return (!cb || cb.checked) ? siphonEffect(S.height, S.habitus, S.angle) : 0;
+}
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+const S = {
+  unit:'cmh2o', height:170, habitus:'normal', angle:0,
+  iap_delta: 0,
+  selected:new Set(), colors:{},
+  advanced: {
+    cath: {},           // per-valve catheter params keyed by valve id
+    visc_mpa_s:       0.69,
+    resp_amp_cm:      1.0,
+    resp_rate_bpm:    12,
+    hr_bpm:           70,
+    cardiac_amp_cm:   2.0,
+  },
+  sim: {
+    mean_icp_cm: 7,
+    currentICP:  7,
+    running:     false,
+  },
+};
+const PALETTE = [
+  '#ef4444','#3b82f6','#22c55e','#f97316','#8b5cf6',
+  '#14b8a6','#ec4899','#f59e0b','#0ea5e9','#84cc16',
+  '#dc2626','#7c3aed','#0891b2','#b45309','#db2777',
+];
+let palIdx = 0;
+function assignColor(id) {
+  if (!S.colors[id]) S.colors[id] = PALETTE[palIdx++ % PALETTE.length];
+  return S.colors[id];
+}
+function freeColor(id) { delete S.colors[id]; }
+
+function toDisplay(cmh2o) { return S.unit === 'cmh2o' ? cmh2o : cmh2o / MM2CM; }
+function fmtVal(cmh2o) {
+  if (S.unit === 'cmh2o') return (+cmh2o).toFixed(0) + ' cmH₂O';
+  return (cmh2o / MM2CM).toFixed(1) + ' mmHg';
+}
+function fmtShort(cmh2o) {
+  return S.unit === 'cmh2o' ? (+cmh2o).toFixed(0) : (cmh2o / MM2CM).toFixed(1);
+}
+
+// ═══════════════════════════════════════════
+// CHART  (linear x-axis for correct band placement)
+// ═══════════════════════════════════════════
+const ICP_MIN = -20, ICP_MAX = 55, ICP_STEP = 0.5; // cmH₂O
+const icpAxis = [];
+for (let v = ICP_MIN; v <= ICP_MAX + 1e-9; v += ICP_STEP) icpAxis.push(+v.toFixed(1));
+
+const bandPlugin = {
+  id: 'normalBand',
+  beforeDraw(chart) {
+    if (!document.getElementById('opt-icp').checked) return;
+    const { ctx, scales: { x, y } } = chart;
+    const { lo, hi } = normalICPRange(S.angle);
+    const x0 = x.getPixelForValue(toDisplay(lo));
+    const x1 = x.getPixelForValue(toDisplay(hi));
+    const top = chart.chartArea.top, bot = chart.chartArea.bottom;
+    ctx.save();
+    ctx.fillStyle = 'rgba(16,185,129,.1)';
+    ctx.fillRect(x0, top, x1 - x0, bot - top);
+    ctx.strokeStyle = 'rgba(16,185,129,.4)';
+    ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    [x0, x1].forEach(px => { ctx.beginPath(); ctx.moveTo(px,top); ctx.lineTo(px,bot); ctx.stroke(); });
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(16,185,129,.8)';
+    ctx.font = 'bold 10px system-ui';
+    ctx.textAlign = 'center';
+    ctx.fillText('Normalt ICP', (x0 + x1) / 2, top + 12);
+    ctx.restore();
+  }
+};
+
+
+function xAxisLabel() {
+  return S.unit === 'cmh2o' ? 'Intrakranielt tryk (cmH₂O)' : 'Intrakranielt tryk (mmHg)';
+}
+
+function buildDatasets() {
+  const siphon = effectiveSiphon();
+  const iap    = effectiveIAP();
+  const orOn   = document.getElementById('opt-or')?.checked;
+
+  const ds = [];
+  S.selected.forEach(id => {
+    const v = VALVE_MAP[id];
+    if (!v) return;
+    const color    = S.colors[id] || '#888';
+    const lbl      = v.label || v.name;
+    const siphon_v = v.evd ? 0 : siphon;
+    const iap_v    = v.evd ? 0 : iap;
+    const cR       = cathRForValve(id);
+    // Opening-range fill band: two shifted curves (lo opens earlier, hi opens later)
+    if (orOn && v.opening_range && v.flowType === 'dp') {
+      const or = v.opening_range;
+      const tol = or.tolerance_cm ?? ((or.max_cm - or.min_cm) / 2);
+      const vLo = { ...v, cur_p: v.cur_p - tol };
+      const vHi = { ...v, cur_p: v.cur_p + tol };
+      ds.push({
+        label: `\x00${id}`,
+        data: icpAxis.map(icp => ({
+          x: toDisplay(icp),
+          y: +Math.max(0, computeFlow(icp, vLo, S.angle, siphon_v, iap_v, cR)).toFixed(2)
+        })),
+        borderColor: 'transparent', backgroundColor: color + '28',
+        borderWidth: 0, pointRadius: 0, tension: 0.12, fill: '+1',
+      });
+      ds.push({
+        label: `\x00${id}b`,
+        data: icpAxis.map(icp => ({
+          x: toDisplay(icp),
+          y: +Math.max(0, computeFlow(icp, vHi, S.angle, siphon_v, iap_v, cR)).toFixed(2)
+        })),
+        borderColor: 'transparent', backgroundColor: 'transparent',
+        borderWidth: 0, pointRadius: 0, tension: 0.12, fill: false,
+      });
+    }
+    ds.push({
+      label: lbl,
+      data: icpAxis.map(icp => ({
+        x: toDisplay(icp),
+        y: +Math.max(0, computeFlow(icp, v, S.angle, siphon_v, iap_v, cR)).toFixed(2)
+      })),
+      borderColor: color,
+      backgroundColor: color + '15',
+      borderWidth: 2.5, pointRadius: 0, tension: 0.12, fill: false,
+    });
+  });
+  if (document.getElementById('opt-prod').checked) {
+    ds.push({
+      label: 'CSF-produktionsrate (~20 mL/time)',
+      data: icpAxis.map(icp => ({ x: toDisplay(icp), y: 20 })),
+      borderColor: '#94a3b8', borderWidth: 1.5, borderDash: [6,4],
+      pointRadius: 0, tension: 0, fill: false,
+    });
+  }
+  if (hasSGSelected()) {
+    ds.push({
+      label: `SiphonGuard aktiveringsflow (${SG_Q_SWITCH} mL/time)`,
+      data: icpAxis.map(icp => ({ x: toDisplay(icp), y: SG_Q_SWITCH })),
+      borderColor: '#f97316', borderWidth: 1.5, borderDash: [3,3],
+      pointRadius: 0, tension: 0, fill: false,
+    });
+  }
+  return ds;
+}
+
+function xMinMax() { return { min: toDisplay(ICP_MIN), max: toDisplay(ICP_MAX) }; }
+
+function hasSGSelected() {
+  for (const id of S.selected) {
+    if ((VALVE_MAP[id]||{}).flowType === 'sg') return true;
+  }
+  return false;
+}
+function yMax() { return hasSGSelected() ? 90 : 42; }
+
+const chart = new Chart(document.getElementById('myChart').getContext('2d'), {
+  type: 'line',
+  data: { datasets: [] },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: { boxWidth: 16, font: { size: 11 }, padding: 8,
+          filter: item => !item.text.startsWith('\x00') && !item.text.startsWith('\x01') }
+      },
+      tooltip: {
+        filter: item => !item.dataset.label.startsWith('\x00') && !item.dataset.label.startsWith('\x01'),
+        callbacks: {
+          title(i) {
+            const u = S.unit === 'cmh2o' ? 'cmH₂O' : 'mmHg';
+            return `ICP: ${i[0].parsed.x.toFixed(S.unit==='cmh2o'?0:1)} ${u}`;
+          },
+          label(i) { return `${i.dataset.label}: ${i.parsed.y.toFixed(1)} mL/time`; }
+        }
+      }
+    },
+    scales: {
+      x: { type:'linear', ...xMinMax(),
+           title:{ display:true, text:xAxisLabel(), font:{size:12,weight:'500'} },
+           ticks:{ maxTicksLimit:14, font:{size:10} } },
+      y: { title:{ display:true, text:'CSF-flowrate (mL/time)', font:{size:12,weight:'500'} },
+           min:0, max:42, ticks:{ stepSize:5, font:{size:10} } }
+    }
+  },
+  plugins: [bandPlugin]
+});
+
+function appendSimDots() {
+  if (!S.sim.running || S.selected.size === 0) return;
+  const siphon = effectiveSiphon();
+  const iap = effectiveIAP();
+  const icp = S.sim.currentICP;
+  S.selected.forEach(id => {
+    const v = VALVE_MAP[id];
+    if (!v) return;
+    const cR = cathRForValve(id);
+    const flow = Math.max(0, computeFlow(icp, v, S.angle, v.evd ? 0 : siphon, v.evd ? 0 : iap, cR));
+    const color = S.colors[id] || '#888';
+    chart.data.datasets.push({
+      label: '\x01sim-' + id, type: 'scatter',
+      data: [{ x: toDisplay(icp), y: +flow.toFixed(2) }],
+      backgroundColor: color, borderColor: '#fff',
+      borderWidth: 2, pointRadius: 8, pointHoverRadius: 8, order: -1,
+    });
+  });
+  updateFlowDisplay();
+}
+
+function redraw() {
+  const mm = xMinMax();
+  chart.options.scales.x.min = mm.min;
+  chart.options.scales.x.max = mm.max;
+  chart.options.scales.x.title.text = xAxisLabel();
+  chart.options.scales.y.max = yMax();
+  chart.data.datasets = buildDatasets();
+  appendSimDots();
+  chart.update('none');
+  updatePatientDisplay();
+  updateThresholdCells();
+  // Show/hide opening-range table labels based on opt-or checkbox
+  const orOn = document.getElementById('opt-or') && document.getElementById('opt-or').checked;
+  document.querySelectorAll('.or-lbl').forEach(el => { el.style.display = orOn ? '' : 'none'; });
+}
+
+// ═══════════════════════════════════════════
+// TABLE VIEW TOGGLES
+// ═══════════════════════════════════════════
+function toggleAdvanced() {
+  const on = document.body.classList.toggle('adv-on');
+  document.getElementById('btn-adv').classList.toggle('on', on);
+  if (!on) {
+    S.iap_delta = 0;
+    const slAdv = document.getElementById('sl-iap-adv-delta');
+    if (slAdv) slAdv.value = 0;
+    stopSim();
+  } else {
+    if (!icpChart) initICPSimChart();
+    buildCathPanel();
+    simBuffer = [];
+    simTime = 0;
+    simLast = null;
+    startSim();
+  }
+  redraw();
+}
+
+// ═══════════════════════════════════════════
+// PATIENT CONTROLS
+// ═══════════════════════════════════════════
+function updPatient() {
+  S.height = +document.getElementById('sl-h').value;
+  S.angle  = +document.getElementById('sl-ang').value;
+  if (document.body.classList.contains('adv-on')) {
+    const sl = document.getElementById('sl-iap-adv-delta');
+    S.iap_delta = sl ? +sl.value : 0;
+  } else {
+    S.iap_delta = 0;
+  }
+  document.getElementById('lbl-h').textContent = S.height + ' cm';
+  const a = S.angle;
+  let lbl = 'Liggende (0°)';
+  if (a > 0  && a <= 25) lbl = `Halvt oprejst (${a}°)`;
+  if (a > 25 && a <= 55) lbl = `Siddende (${a}°)`;
+  if (a > 55 && a <= 80) lbl = `Næsten stående (${a}°)`;
+  if (a > 80)            lbl = `Stående (${a}°)`;
+  document.getElementById('lbl-pos').textContent = lbl;
+  redraw();
+}
+
+function setHabitus(h) {
+  S.habitus = h;
+  ['slim','normal','obese'].forEach(x => document.getElementById('hab-'+x).classList.toggle('on', x===h));
+  redraw();
+}
+
+function setUnit(u) {
+  S.unit = u;
+  document.getElementById('btn-mmhg').classList.toggle('on', u==='mmhg');
+  document.getElementById('btn-cmh2o').classList.toggle('on', u==='cmh2o');
+  // Update all slider value labels
+  document.querySelectorAll('[data-sv-id]').forEach(el => {
+    const v = VALVE_MAP[el.dataset.svId];
+    if (!v) return;
+    const field = el.dataset.svField;
+    const val = field === 'agd' ? v.cur_agd : v.cur_p;
+    el.textContent = fmtShort(val) + (S.unit==='cmh2o'?' cmH₂O':' mmHg');
+  });
+  // Update total labels
+  document.querySelectorAll('[data-total-id]').forEach(el => {
+    const v = VALVE_MAP[el.dataset.totalId];
+    if (!v) return;
+    const total_mm = v.cur_p + (v.cur_agd||0);
+    el.textContent = `→ Samlet stående: ${fmtVal(total_mm)}`;
+  });
+  // Update sim ICP label
+  const simLbl = document.getElementById('lbl-sim-icp');
+  if (simLbl) simLbl.textContent = fmtVal(S.sim.mean_icp_cm);
+  if (icpChart) {
+    icpChart.options.scales.y.title.text = icpYLabel();
+    icpChart.update('none');
+  }
+  buildCathPanel();
+  // Update opening-range labels
+  document.querySelectorAll('[data-or-id]').forEach(el => {
+    const v = VALVE_MAP[el.dataset.orId];
+    if (!v || !v.opening_range) return;
+    const or  = v.opening_range;
+    const str = formatOpeningRange(or);
+    if (str) {
+      const lbl = (or.source === 'ifu') ? 'IFU-spec.:' : 'Forskningsmåling:';
+      const ref = or.ref ? ` (${or.ref})` : '';
+      el.textContent = `${lbl} ${str}${ref}`;
+    }
+  });
+  redraw();
+}
+
+function updAdvanced() {
+  function rd(id, key, lblId, fmt) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    S.advanced[key] = +el.value;
+    const lbl = document.getElementById(lblId);
+    if (lbl) lbl.textContent = fmt(+el.value);
+  }
+  rd('sl-visc',     'visc_mpa_s',       'lbl-visc',     v => v.toFixed(2) + ' mPa·s');
+  rd('sl-resp',     'resp_amp_cm',      'lbl-resp',     v => v.toFixed(1) + ' cmH₂O');
+  rd('sl-resprate', 'resp_rate_bpm',    'lbl-resprate', v => v + ' /min');
+  rd('sl-hr',       'hr_bpm',          'lbl-hr',       v => v + ' /min');
+  rd('sl-cardamp',  'cardiac_amp_cm',  'lbl-cardamp',  v => v.toFixed(1) + ' cmH₂O');
+  buildCathPanel();
+  redraw();
+}
+
+function buildCathPanel() {
+  const container = document.getElementById('adv-cath-panel');
+  if (!container) return;
+  if (S.selected.size === 0) {
+    container.innerHTML = '<div style="font-size:.71rem;color:var(--muted);font-style:italic">Vælg ventiler i tabellen for at justere kateter-parametre.</div>';
+    return;
+  }
+  const ru    = S.unit === 'cmh2o' ? 1 : 1 / MM2CM;
+  const ruLbl = S.unit === 'cmh2o' ? 'cmH₂O' : 'mmHg';
+  let html = '';
+  S.selected.forEach(id => {
+    const v = VALVE_MAP[id];
+    if (!v) return;
+    if (!S.advanced.cath[id]) S.advanced.cath[id] = defaultCath(v);
+    const p     = S.advanced.cath[id];
+    const color = S.colors[id] || '#94a3b8';
+    const lbl   = v.label || v.name;
+    const pR    = catheterResistance({ length_cm: p.prox_length_cm, inner_mm: p.prox_inner_mm, visc_pa_s: _cathVisc() });
+    const dR    = catheterResistance({ length_cm: p.distal_length_cm, inner_mm: p.distal_inner_mm, visc_pa_s: _cathVisc() });
+    html += `<div class="adv-grp" style="border-left:3px solid ${color};padding-left:.6rem">
+      <div class="ptitle" style="color:${color};max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${lbl}</div>
+      <div style="font-size:.67rem;color:var(--muted);margin-bottom:.15rem">Proksimalt (ventrikel)</div>
+      <div class="sl-row">
+        <label><span>Længde</span><strong id="lbl-proxlen-${id}">${p.prox_length_cm} cm</strong></label>
+        <input type="range" data-cath-id="${id}" data-cath-field="prox_length_cm" data-cath-fmt="len"
+          min="5" max="40" step="1" value="${p.prox_length_cm}" oninput="updCath(this)">
+      </div>
+      <div class="sl-row">
+        <label><span>Indv. Ø</span><strong id="lbl-proxdiam-${id}">${p.prox_inner_mm.toFixed(1)} mm</strong></label>
+        <input type="range" data-cath-id="${id}" data-cath-field="prox_inner_mm" data-cath-fmt="diam"
+          min="0.3" max="2.0" step="0.1" value="${p.prox_inner_mm}" oninput="updCath(this)">
+      </div>
+      <div style="font-size:.67rem;color:var(--muted);margin:.3rem 0 .15rem">Distalt (peritoneal)</div>
+      <div class="sl-row">
+        <label><span>Længde</span><strong id="lbl-distlen-${id}">${p.distal_length_cm} cm</strong></label>
+        <input type="range" data-cath-id="${id}" data-cath-field="distal_length_cm" data-cath-fmt="len"
+          min="30" max="250" step="5" value="${p.distal_length_cm}" oninput="updCath(this)">
+      </div>
+      <div class="sl-row">
+        <label><span>Indv. Ø</span><strong id="lbl-distdiam-${id}">${p.distal_inner_mm.toFixed(1)} mm</strong></label>
+        <input type="range" data-cath-id="${id}" data-cath-field="distal_inner_mm" data-cath-fmt="diam"
+          min="0.3" max="2.0" step="0.1" value="${p.distal_inner_mm}" oninput="updCath(this)">
+      </div>
+      <div id="cath-r-${id}" style="font-size:.67rem;color:var(--muted);margin-top:.25rem">
+        Prox ${(pR*ru).toFixed(3)} + dist ${(dR*ru).toFixed(3)} = ${((pR+dR)*ru).toFixed(3)} ${ruLbl}/(mL/t)
+      </div>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function updCath(el) {
+  const id    = el.dataset.cathId;
+  const field = el.dataset.cathField;
+  const fmt   = el.dataset.cathFmt;
+  const val   = +el.value;
+  if (!S.advanced.cath[id]) return;
+  S.advanced.cath[id][field] = val;
+  const isProx = field.startsWith('prox');
+  const isLen  = fmt === 'len';
+  const lblId  = `lbl-${isProx ? 'prox' : 'dist'}${isLen ? 'len' : 'diam'}-${id}`;
+  const lbl    = document.getElementById(lblId);
+  if (lbl) lbl.textContent = isLen ? val + ' cm' : val.toFixed(1) + ' mm';
+  const p     = S.advanced.cath[id];
+  const ru    = S.unit === 'cmh2o' ? 1 : 1 / MM2CM;
+  const ruLbl = S.unit === 'cmh2o' ? 'cmH₂O' : 'mmHg';
+  const pR    = catheterResistance({ length_cm: p.prox_length_cm, inner_mm: p.prox_inner_mm, visc_pa_s: _cathVisc() });
+  const dR    = catheterResistance({ length_cm: p.distal_length_cm, inner_mm: p.distal_inner_mm, visc_pa_s: _cathVisc() });
+  const rEl   = document.getElementById('cath-r-' + id);
+  if (rEl) rEl.textContent = `Prox ${(pR*ru).toFixed(3)} + dist ${(dR*ru).toFixed(3)} = ${((pR+dR)*ru).toFixed(3)} ${ruLbl}/(mL/t)`;
+  redraw();
+}
+
+function updPatientAdv() {
+  const sl = document.getElementById('sl-iap-adv-delta');
+  if (sl) S.iap_delta = +sl.value;
+  redraw();
+}
+
+function updatePatientDisplay() {
+  const siphon   = siphonEffect(S.height, S.habitus, S.angle);
+  const iapBase  = habitusIAP(S.habitus);
+  const iapPos   = iapPositionDelta(S.habitus, S.angle);
+  const delta    = S.iap_delta;
+  const iapTotal = currentIAP();
+  const iapOn    = (() => { const cb = document.getElementById('opt-iap'); return !cb || cb.checked; })();
+  const outlet   = (iapOn ? iapTotal : 0) - siphon;
+
+  // Patient card breakdown
+  document.getElementById('hydro-val').textContent = fmtVal(-siphon);
+  document.getElementById('iap-basic-val').textContent = fmtVal(iapBase);
+  const posEl = document.getElementById('iap-pos-val');
+  if (posEl) {
+    const sign = iapPos > 0 ? '+' : '';
+    posEl.textContent = sign + fmtVal(iapPos);
+  }
+  const totalDisplayEl = document.getElementById('iap-total-displayed');
+  if (totalDisplayEl) totalDisplayEl.textContent = (iapOn ? '' : '(0 — slået fra) ') + fmtVal(iapTotal);
+  document.getElementById('outlet-val').textContent = fmtVal(outlet);
+
+  // Advanced panel IAP labels
+  const advBase = document.getElementById('iap-adv-base-val');
+  if (advBase) advBase.textContent = fmtVal(iapBase);
+  const advPos = document.getElementById('iap-adv-pos-val');
+  if (advPos) {
+    const sign = iapPos > 0 ? '+' : '';
+    advPos.textContent = sign + fmtVal(iapPos);
+  }
+  const advTotal = document.getElementById('iap-adv-total-val');
+  if (advTotal) advTotal.textContent = fmtVal(iapTotal);
+  const advDeltaLbl = document.getElementById('lbl-iap-adv-delta');
+  if (advDeltaLbl) {
+    const sign = delta === 0 ? '±' : delta > 0 ? '+' : '';
+    advDeltaLbl.textContent = sign + fmtVal(delta);
+  }
+
+  const { lo, hi } = normalICPRange(S.angle);
+  const u = S.unit === 'cmh2o' ? 'cmH₂O' : 'mmHg';
+  document.getElementById('icp-range-badge').textContent =
+    `${fmtShort(lo)} – ${fmtShort(hi)} ${u}`;
+  const a = S.angle;
+  const pos = a < 5 ? 'Liggende' : a > 80 ? 'Stående' : `${a}° fra vandret`;
+  document.getElementById('chart-sub').textContent =
+    `${pos} · Udløbstryk: ${fmtVal(outlet)} · Vælg ventiler i tabellen nedenfor`;
+}
+
+// ═══════════════════════════════════════════
+// THRESHOLD CELLS
+// ═══════════════════════════════════════════
+function thrCls(thr_mmhg) {
+  const { lo, hi } = normalICPRange(S.angle);
+  if (thr_mmhg < lo) return 'thr-risk';
+  if (thr_mmhg <= hi) return 'thr-warn';
+  return 'thr-safe';
+}
+
+function updateThresholdCells() {
+  const siphon = effectiveSiphon();
+  const iap = effectiveIAP();
+  const ru = S.unit === 'cmh2o' ? 1 : 1 / MM2CM;
+  const ruLbl = S.unit === 'cmh2o' ? 'cmH₂O' : 'mmHg';
+
+  // Åbningstryk — valve bench threshold at current angle, no siphon, no IAP
+  document.querySelectorAll('[data-thr-id]').forEach(cell => {
+    const v = VALVE_MAP[cell.dataset.thrId];
+    if (!v) return;
+    if (v.flowType === 'osv') {
+      const u = S.unit==='cmh2o'?'cmH₂O':'mmHg';
+      cell.className = 'thr-info';
+      cell.innerHTML = `Lukket &lt;${fmtShort(v.close_p)}<br>Reg. ${fmtShort(v.dp_p)}–${fmtShort(v.safety_p)} ${u}`;
+    } else if (v.isFlowResistor) {
+      cell.className = 'thr-info';
+      cell.innerHTML = `R: ${((v.R||0)*ru).toFixed(2)} ${ruLbl}/(mL/t)`;
+    } else {
+      const thr = openingThreshold(v, S.angle, 0, 0);
+      cell.className = '';
+      cell.innerHTML = fmtVal(thr);
+    }
+  });
+
+  // Åbnings ICP — effective brain ICP threshold with siphon + IAP
+  document.querySelectorAll('[data-icp-id]').forEach(cell => {
+    const id = cell.dataset.icpId;
+    const v  = VALVE_MAP[id];
+    if (!v) return;
+    const cb_cath = document.getElementById('opt-cath');
+    const cathOn  = cb_cath && cb_cath.checked;
+    const pR = cathOn ? proxRForValve(id) : 0;
+    const dR = cathOn ? distRForValve(id) : 0;
+    const totalR = (v.R || 0) + pR + dR;
+    const rInfo = `<div class="thr-info adv-only">Modstand — Ventil: ${((v.R||0)*ru).toFixed(2)} | Prox: ${(pR*ru).toFixed(3)} | Dist: ${(dR*ru).toFixed(2)} = ${(totalR*ru).toFixed(2)} ${ruLbl}/(mL/t)</div>`;
+    const eff_siphon = v.evd ? 0 : siphon;
+    const eff_iap    = v.evd ? 0 : iap;
+    if (v.flowType === 'osv') {
+      const u = S.unit==='cmh2o'?'cmH₂O':'mmHg';
+      const c  = fmtShort(v.close_p  - eff_siphon + eff_iap);
+      const d  = fmtShort(v.dp_p     - eff_siphon + eff_iap);
+      const sf = fmtShort(v.safety_p - eff_siphon + eff_iap);
+      cell.className = 'thr-info';
+      cell.innerHTML = `Lukket &lt;${c}<br>Reg. ${d}–${sf} ${u}` + rInfo;
+    } else if (v.isFlowResistor) {
+      cell.className = 'thr-info';
+      cell.innerHTML = `—` + rInfo;
+    } else if (v.flowType === 'sg') {
+      const thr = v.cur_p - eff_siphon + eff_iap;
+      cell.className = thrCls(thr);
+      cell.innerHTML = `${fmtVal(thr)}<div class="thr-info">Flow begrænset ≥${SG_Q_SWITCH} mL/time</div>` + rInfo;
+    } else {
+      const thr = openingThreshold(v, S.angle, eff_siphon, eff_iap);
+      cell.className = thrCls(thr);
+      cell.innerHTML = fmtVal(thr) + rInfo;
+    }
+  });
+}
+
+// ═══════════════════════════════════════════
+// TABLE BUILDING
+// ═══════════════════════════════════════════
+function buildTable() {
+  const tbody = document.getElementById('vtbody');
+  tbody.innerHTML = '';
+  // Group by manufacturer
+  const byMfg = {};
+  CATALOG.forEach(e => {
+    if (!byMfg[e.mfg]) byMfg[e.mfg] = [];
+    byMfg[e.mfg].push(e);
+  });
+  Object.entries(byMfg).forEach(([mfg, entries]) => {
+    const mtr = document.createElement('tr');
+    mtr.className = 'mfg-hdr';
+    mtr.innerHTML = `<td colspan="10">${mfg}</td>`;
+    tbody.appendChild(mtr);
+    entries.forEach(e => e.type === 'family' ? renderFamily(tbody, e) : renderSingle(tbody, e));
+  });
+  updatePatientDisplay();
+  updateThresholdCells();
+}
+
+function selCell(id) {
+  const d = document.createElement('td');
+  d.innerHTML = `<div class="sel-wrap">
+    <input type="checkbox" id="cb-${id}">
+    <div class="swatch" id="sw-${id}"></div>
+  </div>`;
+  return d;
+}
+
+function renderFamily(tbody, fam) {
+  // Family header
+  const hdr = document.createElement('tr');
+  hdr.className = 'fam-hdr';
+  hdr.innerHTML = `<td></td>
+    <td><b>${fam.name}</b></td>
+    <td><span class="badge ${fam.badge}">${fam.typeLbl}</span>${fam.badge2 ? `<br><span class="badge ${fam.badge2}">${fam.typeLbl2}</span>` : ''}</td>
+    <td style="font-size:.72rem;color:var(--muted)">Vælg variant nedenfor ↓</td>
+    <td></td>
+    <td></td>
+    <td style="font-size:.72rem;color:var(--muted)">${fam.note}${researchHtml(fam.research)}${sourcesHtml(fam.sources)}</td>
+    <td>${refsHtml(fam.refs, ['mfg','ifu','xray','rec'], ['sci','review'])}</td>
+    <td class="xray-col">${refsHtml(fam.refs, ['xray'])}</td>
+    <td class="cath-col">${catheterHtml(fam.catheter)}</td>`;
+  tbody.appendChild(hdr);
+
+  fam.variants.forEach(v => {
+    const tr = document.createElement('tr');
+    tr.className = 'var-row';
+    tr.id = 'tr-' + v.id;
+
+    tr.appendChild(selCell(v.id));
+
+    // Variant name (indented)
+    const nameTd = document.createElement('td');
+    nameTd.className = 'vc-name';
+    nameTd.innerHTML = `<span style="color:var(--muted);font-size:.75rem">↳</span> ${v.label}`;
+    tr.appendChild(nameTd);
+
+    // Type (empty — shown in family header)
+    tr.appendChild(document.createElement('td'));
+
+    // Parameters
+    const paramTd = document.createElement('td');
+    if (v.flowType === 'osv') {
+      paramTd.innerHTML = `<span style="font-size:.72rem;color:var(--muted)">Reguleret: </span><b>${v.reg_flow} mL/time</b>`;
+    } else if (v.lying_cm != null && v.standing_cm != null) {
+      // Gravitational variant with explicit lying/standing totals
+      const lCm = v.lying_cm, sCm = v.standing_cm;
+      paramTd.innerHTML =
+        `<span style="font-size:.72rem;color:var(--muted)">Lig.: </span><b>${lCm} cmH₂O</b>`+
+        `<span style="font-size:.72rem;color:var(--muted)"> &nbsp;Stå.: </span><b>${sCm} cmH₂O</b>`;
+    } else if (v.isFlowResistor) {
+      const rStr = v.R < 10 ? v.R.toFixed(2) : '∞';
+      paramTd.innerHTML = `<span style="font-size:.72rem;color:var(--muted)">Modstand: </span><b>${rStr} cmH₂O/(mL/t)</b>`;
+    } else {
+      const pCm = v.cur_p.toFixed(0);
+      paramTd.innerHTML = `<span style="font-size:.72rem;color:var(--muted)">Åbningstryk: </span><b>${pCm} cmH₂O</b>`;
+    }
+    paramTd.innerHTML += openingRangeHtml(v.id, v.opening_range);
+    paramTd.innerHTML += mfgRefLine(v);
+    tr.appendChild(paramTd);
+
+    // Åbningstryk (no siphon)
+    const thrTd = document.createElement('td');
+    thrTd.dataset.thrId = v.id;
+    thrTd.textContent = '—';
+    tr.appendChild(thrTd);
+
+    // Åbnings ICP (with siphon + IAP)
+    const icpTd = document.createElement('td');
+    icpTd.dataset.icpId = v.id;
+    icpTd.textContent = '—';
+    tr.appendChild(icpTd);
+
+    // Notes (empty)
+    tr.appendChild(document.createElement('td'));
+
+    // Refs (empty for variants — refs are on the family header row)
+    tr.appendChild(document.createElement('td'));
+    // X-ray (empty for variants)
+    const xrayVarTd = document.createElement('td');
+    xrayVarTd.className = 'xray-col';
+    tr.appendChild(xrayVarTd);
+    // Distal catheter (empty for variants — shown on the family header row)
+    const cathVarTd = document.createElement('td');
+    cathVarTd.className = 'cath-col';
+    tr.appendChild(cathVarTd);
+
+    tbody.appendChild(tr);
+    attachCb(v.id);
+  });
+}
+
+function renderSingle(tbody, v) {
+  const tr = document.createElement('tr');
+  tr.id = 'tr-' + v.id;
+
+  tr.appendChild(selCell(v.id));
+
+  const nameTd = document.createElement('td');
+  nameTd.innerHTML = `<b>${v.name}</b>`;
+  tr.appendChild(nameTd);
+
+  const typeTd = document.createElement('td');
+  typeTd.innerHTML = `<span class="badge ${v.badge}">${v.typeLbl}</span>` +
+    (v.badge2 ? `<br><span class="badge ${v.badge2}">${v.typeLbl2}</span>` : '');
+  tr.appendChild(typeTd);
+
+  const paramTd = document.createElement('td');
+  paramTd.innerHTML = buildParamCell(v);
+  tr.appendChild(paramTd);
+
+  const thrTd = document.createElement('td');
+  thrTd.dataset.thrId = v.id;
+  thrTd.textContent = '—';
+  tr.appendChild(thrTd);
+
+  const icpTd = document.createElement('td');
+  icpTd.dataset.icpId = v.id;
+  icpTd.textContent = '—';
+  tr.appendChild(icpTd);
+
+  const noteTd = document.createElement('td');
+  noteTd.style.cssText = 'font-size:.72rem;color:var(--muted);word-break:normal;white-space:normal';
+  noteTd.innerHTML = (v.note || '') + researchHtml(v.research) + sourcesHtml(v.sources);
+  tr.appendChild(noteTd);
+
+  const refsTd = document.createElement('td');
+  refsTd.innerHTML = refsHtml(v.refs, ['mfg','ifu','xray','rec'], ['sci','review']);
+  tr.appendChild(refsTd);
+
+  const xrayTd = document.createElement('td');
+  xrayTd.className = 'xray-col';
+  xrayTd.innerHTML = refsHtml(v.refs, ['xray']);
+  tr.appendChild(xrayTd);
+
+  const cathTd = document.createElement('td');
+  cathTd.className = 'cath-col';
+  cathTd.innerHTML = catheterHtml(v.catheter);
+  tr.appendChild(cathTd);
+
+  tbody.appendChild(tr);
+  attachCb(v.id);
+
+  // Wire up live controls
+  paramTd.querySelectorAll('input[type=range]').forEach(sl => {
+    sl.addEventListener('input', e => {
+      const val = +e.target.value;
+      const field = e.target.dataset.field;
+      if (field === 'p')   v.cur_p   = val;
+      if (field === 'agd') v.cur_agd = val;
+      // Update value label
+      const lbl = paramTd.querySelector(`[data-sv-id="${v.id}"][data-sv-field="${field}"]`);
+      if (lbl) lbl.textContent = fmtShort(val) + (S.unit==='cmh2o'?' cmH₂O':' mmHg');
+      // Update total if shown
+      if (v.showTotal) {
+        const tot = paramTd.querySelector(`[data-total-id="${v.id}"]`);
+        if (tot) tot.textContent = `→ Samlet stående: ${fmtVal(v.cur_p + (v.cur_agd||0))}`;
+      }
+      redraw();
+    });
+  });
+  paramTd.querySelectorAll('select').forEach(sel => {
+    if (sel.dataset.agdOpts) return; // AGD options handled separately below
+    sel.addEventListener('change', e => {
+      const idx = +e.target.value;
+      const setting = v.p_settings[idx];
+      v.cur_p = setting.val;
+      if (setting.r_val !== undefined) v.R = setting.r_val;
+      redraw();
+    });
+  });
+
+  // SiphonGuard on/off toggle (e.g. Certas Plus): switches flowType dp ↔ sg.
+  const sgCb = paramTd.querySelector('[data-sg]');
+  if (sgCb) {
+    sgCb.addEventListener('change', e => {
+      v.flowType = e.target.checked ? 'sg' : 'dp';
+      const info = paramTd.querySelector('#sg-info-' + v.id);
+      if (info) info.innerHTML = e.target.checked ? SG_INFO : '';
+      redraw();
+    });
+  }
+
+  // Wire up AGD options select (multi-device systems e.g. proGAV)
+  const agdOptsSel = paramTd.querySelector('[data-agd-opts]');
+  if (agdOptsSel && v.agdOptions) {
+    const renderAgdAdj = opt => {
+      const adjDiv = document.getElementById('agd-adj-' + v.id);
+      if (!adjDiv) return;
+      if (opt.agdAdj === 'slider') {
+        const minCm = +opt.agd_min.toFixed(0);
+        const maxCm = +opt.agd_max_val.toFixed(0);
+        const curCm = +opt.cur_agd.toFixed(0);
+        const u = S.unit === 'cmh2o' ? 'cmH₂O' : 'mmHg';
+        adjDiv.innerHTML =
+          `<div class="param-lbl" style="margin-top:.25rem">AGD-tillæg (justerbar):</div>`+
+          `<div class="ctrl">`+
+          `<input type="range" data-field="agd-opt" min="${minCm}" max="${maxCm}" step="1" value="${curCm}">`+
+          `<span class="sv" data-sv-id="${v.id}" data-sv-field="agd">${fmtShort(curCm)} ${u}</span>`+
+          `</div>`;
+        adjDiv.querySelector('input').addEventListener('input', e => {
+          const val = +e.target.value;
+          v.cur_agd = val;
+          opt.cur_agd = val;
+          const lbl = adjDiv.querySelector(`[data-sv-id="${v.id}"]`);
+          if (lbl) lbl.textContent = fmtShort(val) + (S.unit==='cmh2o'?' cmH₂O':' mmHg');
+          redraw();
+        });
+      } else {
+        adjDiv.innerHTML = '';
+      }
+    };
+    renderAgdAdj(v.agdOptions[+agdOptsSel.value]);
+    agdOptsSel.addEventListener('change', e => {
+      const opt = v.agdOptions[+e.target.value];
+      v.agdType = opt.agdType;
+      v.cur_agd = opt.cur_agd;
+      renderAgdAdj(opt);
+      redraw();
+    });
+  }
+}
+
+function buildParamCell(v) {
+  if (v.flowType === 'osv') {
+    return `<span style="font-size:.72rem;color:var(--muted)">Fast – reguleret til </span><b>${v.reg_flow} mL/time</b>`;
+  }
+  const u = S.unit === 'cmh2o' ? 'cmH₂O' : 'mmHg';
+  let html = '';
+
+  // Primary pressure
+  if (v.pAdj === 'slider') {
+    const minCm = +v.p_min.toFixed(0);
+    const maxCm = +v.p_max.toFixed(0);
+    const curCm = +v.cur_p.toFixed(0);
+    html += `<div class="param-lbl">${v.evd ? 'Drænhøjde (ref. tragus):' : 'Liggende tryk:'}</div>
+      <div class="ctrl">
+        <input type="range" data-field="p" min="${minCm}" max="${maxCm}" step="1" value="${curCm}">
+        <span class="sv" data-sv-id="${v.id}" data-sv-field="p">${curCm} ${u}</span>
+      </div>`;
+  } else if (v.pAdj === 'select' && v.p_settings) {
+    const defIdx = v.isFlowResistor
+      ? v.p_settings.findIndex(s => s.r_val !== undefined && Math.abs(s.r_val - v.R) < 0.01)
+      : v.p_settings.findIndex(s => Math.abs(s.val - v.cur_p) < 0.1);
+    const opts = v.p_settings.map((s,i) =>
+      `<option value="${i}"${i===(defIdx<0?0:defIdx)?' selected':''}>${s.label}</option>`).join('');
+    if (v.isFlowResistor) html += `<div class="param-lbl">Trin:</div>`;
+    html += `<div class="ctrl"><select>${opts}</select></div>`;
+  } else {
+    // Fixed: show lying + standing if gravitational
+    if (v.agdType && v.agdType !== 'none' && v.cur_agd) {
+      const lCm = v.cur_p.toFixed(0);
+      const sCm = (v.cur_p + v.cur_agd).toFixed(0);
+      html += `<span style="font-size:.75rem">Lig.: <b>${lCm}</b> cmH₂O &nbsp; Stå.: <b>${sCm}</b> cmH₂O</span>`;
+    } else {
+      html += `<span style="font-size:.75rem">${v.cur_p.toFixed(0)} cmH₂O</span>`;
+    }
+  }
+
+  // AGD
+  if (v.agdOptions) {
+    const defIdx = v.agdOptionsDefault || 0;
+    const opts = v.agdOptions.map((o, i) =>
+      `<option value="${i}"${i===defIdx?' selected':''}>${o.label}</option>`
+    ).join('');
+    html += `<div class="param-lbl" style="margin-top:.3rem">Overdrænagebeskyttelse:</div>`+
+      `<div class="ctrl"><select data-agd-opts="${v.id}">${opts}</select></div>`+
+      `<div id="agd-adj-${v.id}"></div>`;
+  } else if (v.agdAdj === 'slider') {
+    const minCm = +v.agd_min.toFixed(0);
+    const maxCm = +v.agd_max_val.toFixed(0);
+    const curCm = +v.cur_agd.toFixed(0);
+    html += `<div class="param-lbl" style="margin-top:.3rem">Stående tillæg (AGD):</div>
+      <div class="ctrl">
+        <input type="range" data-field="agd" min="${minCm}" max="${maxCm}" step="1" value="${curCm}">
+        <span class="sv" data-sv-id="${v.id}" data-sv-field="agd">${curCm} ${u}</span>
+      </div>`;
+  } else if (v.agdType && v.agdType !== 'none' && v.cur_agd && v.pAdj !== false) {
+    const agdCm = v.cur_agd.toFixed(0);
+    if (v.agdType === 'delta' || v.agdType === 'spiral') {
+      html += `<div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">
+        Sifonkompensation (fast): ≤${agdCm} cmH₂O</div>`;
+    } else {
+      html += `<div style="font-size:.72rem;color:var(--muted);margin-top:.2rem">
+        AGD-tillæg (fast): +${agdCm} cmH₂O</div>`;
+    }
+  }
+
+  // Total standing label for dual-adjustable systems
+  if (v.showTotal) {
+    const totalCm = (v.cur_p + (v.cur_agd||0)).toFixed(0);
+    html += `<div class="total-lbl" data-total-id="${v.id}">→ Samlet stående: ${fmtVal(v.cur_p + (v.cur_agd||0))}</div>`;
+  }
+
+  // SiphonGuard on/off toggle — valves where SiphonGuard is an option (e.g. Certas Plus)
+  if (v.sgAvailable) {
+    const on = v.flowType === 'sg';
+    html += `<label style="display:flex;align-items:center;gap:.35rem;`+
+      `font-size:.74rem;margin-top:.4rem;cursor:pointer">`+
+      `<input type="checkbox" data-sg="${v.id}"${on?' checked':''}> SiphonGuard</label>`+
+      `<div id="sg-info-${v.id}" style="font-size:.71rem;color:#ea580c;margin-top:.15rem">`+
+      `${on?SG_INFO:''}</div>`;
+  }
+
+  html += openingRangeHtml(v.id, v.opening_range);
+  html += mfgRefLine(v);
+
+  return html || '—';
+}
+
+function attachCb(id) {
+  const cb = document.getElementById('cb-' + id);
+  if (!cb) return;
+  cb.addEventListener('change', e => {
+    const sw = document.getElementById('sw-' + id);
+    if (e.target.checked) {
+      S.selected.add(id);
+      const col = assignColor(id);
+      sw.style.background = col;
+      sw.classList.add('on');
+      if (!S.advanced.cath[id]) S.advanced.cath[id] = defaultCath(VALVE_MAP[id]);
+    } else {
+      S.selected.delete(id);
+      freeColor(id);
+      sw.style.background = '';
+      sw.classList.remove('on');
+    }
+    if (document.body.classList.contains('adv-on')) buildCathPanel();
+    redraw();
+  });
+}
+
+// ═══════════════════════════════════════════
+// ICP SIMULATION
+// ═══════════════════════════════════════════
+function simICPAt(t) {
+  const T_card = 60 / S.advanced.hr_bpm;
+  const phi    = (t % T_card) / T_card;
+  const cardiac = cardiacICPWave(phi, S.advanced.cardiac_amp_cm);
+  const resp    = S.advanced.resp_amp_cm * Math.sin(2 * Math.PI * S.advanced.resp_rate_bpm / 60 * t);
+  return S.sim.mean_icp_cm + cardiac + resp;
+}
+
+// IAP at simulation time t (anti-phase to respiratory ICP).
+function simIAPAt(t) {
+  const iapOn = !document.getElementById('opt-iap') || document.getElementById('opt-iap').checked;
+  if (!iapOn) return 0;
+  const resp_osc = -S.advanced.resp_amp_cm * 2.5 * Math.sin(2 * Math.PI * S.advanced.resp_rate_bpm / 60 * t);
+  return currentIAP() + resp_osc;
+}
+
+function icpYLabel() {
+  return S.unit === 'cmh2o' ? 'ICP (cmH₂O)' : 'ICP (mmHg)';
+}
+
+const icpBandPlugin = {
+  id: 'icpNormalBand',
+  beforeDraw(ch) {
+    const { ctx, scales: { x, y } } = ch;
+    const { lo, hi } = normalICPRange(S.angle);
+    const py0 = y.getPixelForValue(toDisplay(hi));
+    const py1 = y.getPixelForValue(toDisplay(lo));
+    const { left, right } = ch.chartArea;
+    ctx.save();
+    ctx.fillStyle = 'rgba(16,185,129,.12)';
+    ctx.fillRect(left, py0, right - left, py1 - py0);
+    ctx.strokeStyle = 'rgba(16,185,129,.5)';
+    ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    [py0, py1].forEach(py => { ctx.beginPath(); ctx.moveTo(left, py); ctx.lineTo(right, py); ctx.stroke(); });
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+};
+
+let icpChart = null;
+function initICPSimChart() {
+  const ctx = document.getElementById('icpSimChart').getContext('2d');
+  icpChart = new Chart(ctx, {
+    type: 'line',
+    data: { datasets: [{ label: 'ICP', data: [],
+      borderColor: '#3b82f6', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: false }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: {
+        x: { type: 'linear', min: 0, max: 8,
+             title: { display: true, text: 'Tid (s)', font: { size: 10 } },
+             ticks: { maxTicksLimit: 6, font: { size: 9 } } },
+        y: { title: { display: true, text: icpYLabel(), font: { size: 10 } },
+             ticks: { font: { size: 9 } } },
+      }
+    },
+    plugins: [icpBandPlugin]
+  });
+}
+
+const SIM_WINDOW = 8;
+let simBuffer = [];
+let simTime = 0;
+let simLast = null;
+let simRAF = null;
+let _lastChartUpdate = 0;
+
+function startSim() {
+  if (S.sim.running) return;
+  S.sim.running = true;
+  simLast = null;
+  simRAF = requestAnimationFrame(simStep);
+}
+
+function stopSim() {
+  S.sim.running = false;
+  if (simRAF) { cancelAnimationFrame(simRAF); simRAF = null; }
+  chart.data.datasets = chart.data.datasets.filter(d => !d.label.startsWith('\x01'));
+  chart.update('none');
+}
+
+function simStep(ts) {
+  if (!S.sim.running) return;
+  if (simLast !== null) simTime += Math.min((ts - simLast) / 1000, 0.1);
+  simLast = ts;
+
+  const icp = simICPAt(simTime);
+  S.sim.currentICP = icp;
+  simBuffer.push({ t: simTime, icp });
+  const cutoff = simTime - SIM_WINDOW;
+  while (simBuffer.length > 1 && simBuffer[0].t < cutoff) simBuffer.shift();
+
+  if (ts - _lastChartUpdate > 33) {
+    _lastChartUpdate = ts;
+    updateICPChartData();
+    updateSimDots();
+  }
+  simRAF = requestAnimationFrame(simStep);
+}
+
+function updateICPChartData() {
+  if (!icpChart) return;
+  const tNow = simTime;
+  icpChart.data.datasets[0].data = simBuffer.map(p => ({
+    x: +(p.t - tNow + SIM_WINDOW).toFixed(3),
+    y: +toDisplay(p.icp).toFixed(2),
+  }));
+  const pad = S.advanced.resp_amp_cm + S.advanced.cardiac_amp_cm + 1;
+  icpChart.options.scales.y.min = +toDisplay(S.sim.mean_icp_cm - pad).toFixed(1);
+  icpChart.options.scales.y.max = +toDisplay(S.sim.mean_icp_cm + pad).toFixed(1);
+  icpChart.update('none');
+}
+
+function updateSimDots() {
+  chart.data.datasets = chart.data.datasets.filter(d => !d.label.startsWith('\x01'));
+  if (S.selected.size === 0) { chart.update('none'); return; }
+  const siphon = effectiveSiphon();
+  const iap = effectiveIAP();
+  const icp = S.sim.currentICP;
+  S.selected.forEach(id => {
+    const v = VALVE_MAP[id];
+    if (!v) return;
+    const cR = cathRForValve(id);
+    const flow = Math.max(0, computeFlow(icp, v, S.angle, v.evd ? 0 : siphon, v.evd ? 0 : iap, cR));
+    const color = S.colors[id] || '#888';
+    chart.data.datasets.push({
+      label: '\x01sim-' + id, type: 'scatter',
+      data: [{ x: toDisplay(icp), y: +flow.toFixed(2) }],
+      backgroundColor: color, borderColor: '#fff',
+      borderWidth: 2, pointRadius: 8, pointHoverRadius: 8, order: -1,
+    });
+  });
+  chart.update('none');
+  updateFlowDisplay();
+}
+
+function computeAvgFlow(v) {
+  const T_card = 60 / S.advanced.hr_bpm;
+  const T_resp = 60 / S.advanced.resp_rate_bpm;
+  const N      = Math.ceil(T_resp / T_card) * 20; // 20 samples/cardiac cycle, ≥ one resp cycle
+  const dt     = T_resp / N;
+  const siphon = effectiveSiphon();
+  const cR     = cathRForValve(v.id);
+  let sum = 0;
+  for (let i = 0; i < N; i++) {
+    const t = i * dt;
+    sum += Math.max(0, computeFlow(simICPAt(t), v, S.angle, v.evd ? 0 : siphon, v.evd ? 0 : simIAPAt(t), cR));
+  }
+  return sum / N;
+}
+
+function updateFlowDisplay() {
+  const el = document.getElementById('sim-flow-display');
+  if (!el) return;
+  if (S.selected.size === 0) { el.innerHTML = ''; return; }
+  let html = '<div style="display:flex;flex-wrap:wrap;gap:.5rem 1.2rem">';
+  S.selected.forEach(id => {
+    const v = VALVE_MAP[id];
+    if (!v) return;
+    const color = S.colors[id] || '#888';
+    const avgHr  = computeAvgFlow(v);
+    const avgMin = avgHr / 60;
+    const lbl = v.label || v.name;
+    html += `<div style="display:flex;align-items:center;gap:.4rem">
+      <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></span>
+      <span style="color:var(--muted)">${lbl}:</span>
+      <strong>${avgHr.toFixed(1)} mL/time</strong>
+      <span style="color:var(--muted)">(${avgMin.toFixed(2)} mL/min)</span>
+    </div>`;
+  });
+  html += '</div>';
+  html += '<div style="font-size:.68rem;color:var(--muted);margin-top:.2rem">Estimeret volumen pr. cyklus × 3600 → mL/time. Inkl. hjertefrekvens, respiration og IAP-oscillation.</div>';
+  el.innerHTML = html;
+}
+
+function updSimICP() {
+  const val = +document.getElementById('sl-sim-icp').value;
+  S.sim.mean_icp_cm = val;
+  document.getElementById('lbl-sim-icp').textContent = fmtVal(val);
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+buildTable();
+updPatient();
+</script>
+</body>
+</html>
