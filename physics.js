@@ -81,7 +81,7 @@ function computeFlow(icp, v, angle_deg, siphon, distalPressure_cm = 0, cR = 0) {
   if (v.flowType === 'osv') return flowOSV(icp, v, siphon, distalPressure_cm, cR);
   if (v.flowType === 'sg') return flowSiphonGuard(icp, v, siphon, distalPressure_cm, cR);
   const thr = openingThreshold(v, angle_deg, siphon, distalPressure_cm);
-  return Math.max(0, Math.min(48, (icp - thr) / (v.R + cR)));
+  return Math.max(0, (icp - thr) / (v.R + cR));
 }
 
 function normalICPRange(angle_deg) {
